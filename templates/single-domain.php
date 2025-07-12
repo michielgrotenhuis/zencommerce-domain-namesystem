@@ -168,9 +168,10 @@ function get_domain_page_data() {
 }
 
 /**
- * Get domain alternatives based on primary category
+ * Get domain alternatives based on primary category (Theme version)
+ * Renamed to avoid conflict with plugin function
  */
-function get_domain_alternatives($post_id, $current_tld) {
+function get_theme_domain_alternatives($post_id, $current_tld) {
     $alternatives = array();
     
     // Get the primary category of the current domain

@@ -5,15 +5,8 @@
  * Description: A comprehensive domain management system for WordPress with TLD information, pricing, and analytics.
  * Version: 1.0.0
  * Author: Your Name
- * Author URI: https://yourwebsite.com
  * License: GPL v2 or later
- * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: domain-system
- * Domain Path: /languages
- * Requires at least: 5.0
- * Tested up to: 6.4
- * Requires PHP: 7.4
- * Network: false
  *
  * @package DomainSystem
  * @since 1.0.0
@@ -31,488 +24,238 @@ define('DOMAIN_SYSTEM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('DOMAIN_SYSTEM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('DOMAIN_SYSTEM_INCLUDES_DIR', DOMAIN_SYSTEM_PLUGIN_DIR . 'includes/');
 define('DOMAIN_SYSTEM_ASSETS_URL', DOMAIN_SYSTEM_PLUGIN_URL . 'assets/');
+define('DOMAIN_SYSTEM_TEMPLATES_DIR', DOMAIN_SYSTEM_PLUGIN_DIR . 'templates/');
 
 /**
- * Main Domain System Class
+ * Debug function to check plugin status
  */
-class DomainSystem {
-    
-    /**
-     * Plugin instance
-     * 
-     * @var DomainSystem
-     */
-    private static $instance = null;
-    
-    /**
-     * Get plugin instance
-     * 
-     * @return DomainSystem
-     */
-    public static function instance() {
-        if (self::$instance === null) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
-    
-    /**
-     * Constructor
-     */
-    private function __construct() {
-        $this->init();
-    }
-    
-    /**
-     * Initialize the plugin
-     */
-    private function init() {
-        // Load text domain
-        add_action('plugins_loaded', [$this, 'load_textdomain']);
-        
-        // Initialize components
-        add_action('init', [$this, 'init_components']);
-        
-        // Activation and deactivation hooks
-        register_activation_hook(__FILE__, [$this, 'activate']);
-        register_deactivation_hook(__FILE__, [$this, 'deactivate']);
-        
-        // Plugin action links
-        add_filter('plugin_action_links_' . plugin_basename(__FILE__), [$this, 'action_links']);
-    }
-    
-    /**
-     * Load plugin text domain
-     */
-    public function load_textdomain() {
-        load_plugin_textdomain(
-            'domain-system',
-            false,
-            dirname(plugin_basename(__FILE__)) . '/languages/'
-        );
-    }
-    
-    /**
-     * Initialize plugin components
-     */
-    public function init_components() {
-        // Load required files
-        $this->load_includes();
-        
-        // Initialize components
-        $this->init_post_type();
-        $this->init_admin();
-        $this->init_frontend();
-        $this->init_ajax();
-    }
-    
-    /**
-     * Load required include files
-     */
-    private function load_includes() {
-        $includes = [
-            'functions.php',
-            'class-domain-validation.php',
-            'class-domain-post-type.php',
-        ];
-        
-        // Load admin files only in admin
-        if (is_admin()) {
-            $includes[] = 'class-domain-admin-interface.php';
-        }
-        
-        // Load AJAX handlers for both admin and frontend
-        if (is_admin() || wp_doing_ajax()) {
-            $includes[] = 'class-domain-ajax-handlers.php';
-        }
-        
-        // Load frontend files only on frontend
-        if (!is_admin()) {
-            $includes[] = 'class-domain-frontend.php';
-        }
-        
-        foreach ($includes as $file) {
-            $file_path = DOMAIN_SYSTEM_INCLUDES_DIR . $file;
-            if (file_exists($file_path)) {
-                require_once $file_path;
-            }
-        }
-    }
-    
-    /**
-     * Initialize post type
-     */
-    private function init_post_type() {
-        if (class_exists('DomainPostType')) {
-            new DomainPostType();
-        }
-    }
-    
-    /**
-     * Initialize admin interface
-     */
-    private function init_admin() {
-        if (is_admin() && class_exists('DomainAdminInterface')) {
-            new DomainAdminInterface();
-        }
-    }
-    
-    /**
-     * Initialize frontend
-     */
-    private function init_frontend() {
-        if (!is_admin() && class_exists('DomainFrontend')) {
-            new DomainFrontend();
-        }
-    }
-    
-    /**
-     * Initialize AJAX handlers
-     */
-    private function init_ajax() {
-        if ((is_admin() || wp_doing_ajax()) && class_exists('DomainAjaxHandlers')) {
-            new DomainAjaxHandlers();
-        }
-    }
-    
-    /**
-     * Plugin activation
-     */
-    public function activate() {
-        // Create database tables if needed
-        $this->create_tables();
-        
-        // Set default options
-        $this->set_default_options();
-        
-        // Flush rewrite rules
-        flush_rewrite_rules();
-        
-        // Create upload directories
-        $this->create_directories();
-    }
-    
-    /**
-     * Plugin deactivation
-     */
-    public function deactivate() {
-        // Flush rewrite rules
-        flush_rewrite_rules();
-        
-        // Clear scheduled events
-        wp_clear_scheduled_hook('domain_system_cleanup');
-    }
-    
-    /**
-     * Create database tables
-     */
-    private function create_tables() {
-        global $wpdb;
-        
-        $charset_collate = $wpdb->get_charset_collate();
-        
-        // Domain analytics table
-        $table_name = $wpdb->prefix . 'domain_analytics';
-        
-        $sql = "CREATE TABLE $table_name (
-            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            post_id bigint(20) unsigned NOT NULL,
-            event_type varchar(50) NOT NULL,
-            event_data longtext,
-            ip_address varchar(45),
-            user_agent text,
-            created_at datetime DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY post_id (post_id),
-            KEY event_type (event_type),
-            KEY created_at (created_at)
-        ) $charset_collate;";
-        
-        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        dbDelta($sql);
-        
-        // Update database version
-        update_option('domain_system_db_version', '1.0');
-    }
-    
-    /**
-     * Set default plugin options
-     */
-    private function set_default_options() {
-        $defaults = [
-            'domain_currency_symbol' => '$',
-            'domain_posts_per_page' => 10,
-            'domain_enable_analytics' => '1',
-            'domain_auto_generate_content' => '1',
-            'domain_seo_optimization' => '1',
-            'domain_show_pricing' => '1',
-            'domain_show_faqs' => '1',
-            'domain_archive_layout' => 'grid'
-        ];
-        
-        foreach ($defaults as $option => $value) {
-            if (get_option($option) === false) {
-                add_option($option, $value);
-            }
-        }
-    }
-    
-    /**
-     * Create required directories
-     */
-    private function create_directories() {
-        $upload_dir = wp_upload_dir();
-        $domain_dir = $upload_dir['basedir'] . '/domain-system';
-        
-        if (!file_exists($domain_dir)) {
-            wp_mkdir_p($domain_dir);
-        }
-        
-        // Create subdirectories
-        $subdirs = ['exports', 'imports', 'cache'];
-        foreach ($subdirs as $subdir) {
-            $dir_path = $domain_dir . '/' . $subdir;
-            if (!file_exists($dir_path)) {
-                wp_mkdir_p($dir_path);
-            }
-        }
-        
-        // Create .htaccess file for security
-        $htaccess_content = "deny from all\n";
-        file_put_contents($domain_dir . '/.htaccess', $htaccess_content);
-    }
-    
-    /**
-     * Add plugin action links
-     */
-    public function action_links($links) {
-        $plugin_links = [
-            '<a href="' . admin_url('edit.php?post_type=domain&page=domain-settings') . '">' . __('Settings', 'domain-system') . '</a>',
-            '<a href="' . admin_url('edit.php?post_type=domain') . '">' . __('Domains', 'domain-system') . '</a>',
-            '<a href="https://yourwebsite.com/docs" target="_blank">' . __('Documentation', 'domain-system') . '</a>'
-        ];
-        
-        return array_merge($plugin_links, $links);
-    }
-    
-    /**
-     * Get plugin version
-     */
-    public function get_version() {
-        return DOMAIN_SYSTEM_VERSION;
-    }
-    
-    /**
-     * Get plugin directory path
-     */
-    public function get_plugin_dir() {
-        return DOMAIN_SYSTEM_PLUGIN_DIR;
-    }
-    
-    /**
-     * Get plugin URL
-     */
-    public function get_plugin_url() {
-        return DOMAIN_SYSTEM_PLUGIN_URL;
-    }
+function domain_system_debug() {
+    error_log('=== DOMAIN SYSTEM DEBUG START ===');
+    error_log('Plugin activated: ' . (is_plugin_active(plugin_basename(__FILE__)) ? 'YES' : 'NO'));
+    error_log('Constants defined: ' . (defined('DOMAIN_SYSTEM_VERSION') ? 'YES' : 'NO'));
+    error_log('=== DOMAIN SYSTEM DEBUG END ===');
 }
 
 /**
- * Initialize the plugin
+ * Register domain post type directly
  */
-function domain_system() {
-    return DomainSystem::instance();
-}
+function domain_system_register_post_type() {
+    error_log('Registering domain post type...');
+    
+    $labels = [
+        'name' => __('Domains', 'domain-system'),
+        'singular_name' => __('Domain', 'domain-system'),
+        'menu_name' => __('Domains', 'domain-system'),
+        'name_admin_bar' => __('Domain', 'domain-system'),
+        'add_new' => __('Add New', 'domain-system'),
+        'add_new_item' => __('Add New Domain', 'domain-system'),
+        'new_item' => __('New Domain', 'domain-system'),
+        'edit_item' => __('Edit Domain', 'domain-system'),
+        'view_item' => __('View Domain', 'domain-system'),
+        'all_items' => __('All Domains', 'domain-system'),
+        'search_items' => __('Search Domains', 'domain-system'),
+        'not_found' => __('No domains found.', 'domain-system'),
+        'not_found_in_trash' => __('No domains found in Trash.', 'domain-system'),
+    ];
 
-// Start the plugin
-domain_system();
-
-/**
- * Helper functions for easier access
- */
-
-/**
- * Get domain system instance
- */
-function get_domain_system() {
-    return DomainSystem::instance();
-}
-
-/**
- * Check if domain system is active
- */
-function is_domain_system_active() {
-    return class_exists('DomainSystem');
-}
-
-/**
- * Get domain by TLD
- */
-function get_domain_by_tld($tld) {
     $args = [
-        'post_type' => 'domain',
-        'meta_query' => [
-            [
-                'key' => '_domain_tld',
-                'value' => $tld,
-                'compare' => '='
-            ]
-        ],
-        'posts_per_page' => 1
+        'labels' => $labels,
+        'description' => __('Domain management system', 'domain-system'),
+        'public' => true,
+        'publicly_queryable' => true,
+        'show_ui' => true,
+        'show_in_menu' => true,
+        'query_var' => true,
+        'rewrite' => ['slug' => 'domains'],
+        'capability_type' => 'post',
+        'has_archive' => true,
+        'hierarchical' => false,
+        'menu_position' => 25,
+        'menu_icon' => 'dashicons-admin-site-alt3',
+        'supports' => ['title', 'editor', 'thumbnail', 'custom-fields'],
+        'show_in_rest' => true,
     ];
-    
-    $domains = get_posts($args);
-    return !empty($domains) ? $domains[0] : null;
-}
 
-/**
- * Get all domain TLDs
- */
-function get_all_domain_tlds() {
-    static $tlds = null;
+    $result = register_post_type('domain', $args);
     
-    if ($tlds === null) {
-        global $wpdb;
-        
-        $tlds = $wpdb->get_col("
-            SELECT DISTINCT meta_value 
-            FROM {$wpdb->postmeta} pm
-            INNER JOIN {$wpdb->posts} p ON pm.post_id = p.ID
-            WHERE pm.meta_key = '_domain_tld'
-            AND p.post_type = 'domain'
-            AND p.post_status = 'publish'
-            ORDER BY meta_value ASC
-        ");
-    }
-    
-    return $tlds ?: [];
-}
-
-/**
- * Check if domain exists
- */
-function domain_exists($tld) {
-    return get_domain_by_tld($tld) !== null;
-}
-
-/**
- * Get domain registries
- */
-function get_domain_registries() {
-    return [
-        'Verisign',
-        'Donuts Inc.',
-        'GMO Registry',
-        'Radix Registry',
-        'Afilias',
-        'Neustar',
-        'CentralNic',
-        'Google Registry',
-        'Amazon Registry Services',
-        'Charleston Road Registry',
-        'Nominet',
-        'Public Interest Registry',
-        'Internet Corporation for Assigned Names and Numbers',
-        'Minds + Machines',
-        'Rightside Registry',
-        'Famous Four Media',
-        'Registry Services, LLC',
-        'dot Luxury LLC',
-        'Identity Digital',
-        'XYZ.COM LLC'
-    ];
-}
-
-/**
- * Convert TLD to slug
- */
-function tld_to_slug($tld) {
-    $tld = ltrim($tld, '.');
-    return sanitize_title($tld . '-domain');
-}
-
-/**
- * Format domain policy
- */
-function format_domain_policy($policy_data) {
-    $policy_text = '';
-    
-    if (!empty($policy_data['min_length']) || !empty($policy_data['max_length'])) {
-        $policy_text .= sprintf(
-            __('Domain length: %d to %d characters. ', 'domain-system'),
-            $policy_data['min_length'] ?: 1,
-            $policy_data['max_length'] ?: 63
-        );
-    }
-    
-    if (!empty($policy_data['numbers_allowed'])) {
-        $policy_text .= __('Numbers are allowed. ', 'domain-system');
+    if (is_wp_error($result)) {
+        error_log('Domain post type registration failed: ' . $result->get_error_message());
     } else {
-        $policy_text .= __('Numbers are not allowed. ', 'domain-system');
+        error_log('Domain post type registered successfully');
     }
     
-    if (!empty($policy_data['hyphens_allowed'])) {
-        switch ($policy_data['hyphens_allowed']) {
-            case 'middle':
-                $policy_text .= __('Hyphens allowed in middle positions only. ', 'domain-system');
-                break;
-            case 'anywhere':
-                $policy_text .= __('Hyphens allowed anywhere except first and last position. ', 'domain-system');
-                break;
-            default:
-                $policy_text .= __('Hyphens are not allowed. ', 'domain-system');
+    // Verify registration
+    if (post_type_exists('domain')) {
+        error_log('Domain post type EXISTS after registration');
+    } else {
+        error_log('Domain post type DOES NOT EXIST after registration');
+    }
+}
+
+/**
+ * Create basic database options
+ */
+function domain_system_create_options() {
+    $defaults = [
+        'domain_currency_symbol' => '$',
+        'domain_posts_per_page' => 10,
+        'domain_enable_analytics' => '1',
+    ];
+    
+    foreach ($defaults as $option => $value) {
+        if (get_option($option) === false) {
+            add_option($option, $value);
+        }
+    }
+}
+
+/**
+ * Load includes safely
+ */
+function domain_system_load_includes() {
+    // Load functions file
+    $functions_file = DOMAIN_SYSTEM_INCLUDES_DIR . 'functions.php';
+    if (file_exists($functions_file)) {
+        require_once $functions_file;
+        error_log('Functions file loaded successfully');
+    } else {
+        error_log('Functions file NOT found: ' . $functions_file);
+    }
+    
+    // Load other includes
+    $includes = [
+        'domain-functions.php',
+        'domain-template-functions.php'
+    ];
+    
+    foreach ($includes as $file) {
+        $file_path = DOMAIN_SYSTEM_INCLUDES_DIR . $file;
+        if (file_exists($file_path)) {
+            require_once $file_path;
+            error_log("Loaded: {$file}");
+        } else {
+            error_log("NOT found: {$file}");
         }
     }
     
-    if (!empty($policy_data['idn_allowed'])) {
-        $policy_text .= __('Internationalized domain names (IDN) are supported.', 'domain-system');
+    // Load post type classes if they exist
+    $post_type_files = [
+        'post-type/class-domain-registration.php',
+        'post-type/class-domain-taxonomies.php',
+        'post-type/class-domain-meta-boxes.php',
+        'post-type/class-domain-admin-interface.php',
+        'post-type/class-domain-post-type.php',
+    ];
+    
+    foreach ($post_type_files as $file) {
+        $file_path = DOMAIN_SYSTEM_INCLUDES_DIR . $file;
+        if (file_exists($file_path)) {
+            require_once $file_path;
+            error_log("Loaded post-type file: {$file}");
+        } else {
+            error_log("NOT found post-type file: {$file}");
+        }
     }
-    
-    return trim($policy_text);
 }
 
 /**
- * Get domain search suggestions
+ * Initialize meta boxes
  */
-function get_domain_search_suggestions($query, $limit = 5) {
-    global $wpdb;
-    
-    $suggestions = $wpdb->get_results($wpdb->prepare("
-        SELECT p.ID, p.post_title, pm.meta_value as tld
-        FROM {$wpdb->posts} p
-        INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
-        WHERE p.post_type = 'domain'
-        AND p.post_status = 'publish'
-        AND pm.meta_key = '_domain_tld'
-        AND (p.post_title LIKE %s OR pm.meta_value LIKE %s)
-        ORDER BY p.post_title ASC
-        LIMIT %d
-    ", '%' . $wpdb->esc_like($query) . '%', '%' . $wpdb->esc_like($query) . '%', $limit));
-    
-    return $suggestions;
+function domain_system_add_meta_boxes() {
+    if (class_exists('DomainMetaBoxes')) {
+        $meta_boxes = new DomainMetaBoxes();
+        $meta_boxes->add_boxes();
+        error_log('Meta boxes added via class');
+    } else {
+        // Fallback meta box
+        add_meta_box(
+            'domain-basic-info',
+            __('Domain Information', 'domain-system'),
+            'domain_system_basic_meta_box',
+            'domain',
+            'normal',
+            'high'
+        );
+        error_log('Basic meta box added as fallback');
+    }
 }
 
 /**
- * Log domain activity
+ * Basic meta box fallback
  */
-function log_domain_activity($event_type, $post_id, $data = []) {
-    if (!get_option('domain_enable_analytics')) {
+function domain_system_basic_meta_box($post) {
+    wp_nonce_field('domain_meta_save', 'domain_meta_nonce');
+    
+    $tld = get_post_meta($post->ID, '_domain_tld', true);
+    $price = get_post_meta($post->ID, '_domain_registration_price', true);
+    ?>
+    <table class="form-table">
+        <tr>
+            <th><label for="domain_tld">TLD:</label></th>
+            <td><input type="text" id="domain_tld" name="domain_tld" value="<?php echo esc_attr($tld); ?>" placeholder=".shop" /></td>
+        </tr>
+        <tr>
+            <th><label for="domain_price">Price:</label></th>
+            <td><input type="number" step="0.01" id="domain_price" name="domain_price" value="<?php echo esc_attr($price); ?>" /></td>
+        </tr>
+    </table>
+    <?php
+}
+
+/**
+ * Save meta data
+ */
+function domain_system_save_meta($post_id) {
+    if (!isset($_POST['domain_meta_nonce']) || 
+        !wp_verify_nonce($_POST['domain_meta_nonce'], 'domain_meta_save') ||
+        !current_user_can('edit_post', $post_id)) {
         return;
     }
+
+    if (isset($_POST['domain_tld'])) {
+        update_post_meta($post_id, '_domain_tld', sanitize_text_field($_POST['domain_tld']));
+    }
     
-    global $wpdb;
-    
-    $table_name = $wpdb->prefix . 'domain_analytics';
-    
-    $wpdb->insert(
-        $table_name,
-        [
-            'post_id' => $post_id,
-            'event_type' => $event_type,
-            'event_data' => json_encode($data),
-            'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
-            'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? ''
-        ],
-        ['%d', '%s', '%s', '%s', '%s']
-    );
+    if (isset($_POST['domain_price'])) {
+        update_post_meta($post_id, '_domain_registration_price', floatval($_POST['domain_price']));
+    }
 }
+
+/**
+ * Plugin activation
+ */
+function domain_system_activate() {
+    error_log('Domain System: Activating plugin');
+    domain_system_create_options();
+    domain_system_register_post_type();
+    flush_rewrite_rules();
+    error_log('Domain System: Plugin activated successfully');
+}
+
+/**
+ * Plugin deactivation
+ */
+function domain_system_deactivate() {
+    flush_rewrite_rules();
+}
+
+// Hook everything up
+add_action('plugins_loaded', 'domain_system_debug');
+add_action('init', 'domain_system_register_post_type', 10);
+add_action('init', 'domain_system_load_includes', 11);
+add_action('add_meta_boxes', 'domain_system_add_meta_boxes');
+add_action('save_post_domain', 'domain_system_save_meta');
+
+// Activation/Deactivation hooks
+register_activation_hook(__FILE__, 'domain_system_activate');
+register_deactivation_hook(__FILE__, 'domain_system_deactivate');
+
+// Add admin notice for debugging
+add_action('admin_notices', function() {
+    if (current_user_can('manage_options')) {
+        $post_type_exists = post_type_exists('domain') ? 'YES' : 'NO';
+        echo '<div class="notice notice-info"><p><strong>Domain System Debug:</strong> Post type exists: ' . $post_type_exists . '</p></div>';
+    }
+});
+
+error_log('Domain System: Plugin file loaded');

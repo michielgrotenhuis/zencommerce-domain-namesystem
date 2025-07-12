@@ -1,6 +1,6 @@
 <?php
 /**
- * Domain Meta Boxes Component
+ * Domain Meta Boxes Component - Updated for Structured Fields
  * 
  * Handles all meta box registration and rendering for domain posts
  * 
@@ -28,7 +28,7 @@ class DomainMetaBoxes {
             'high'
         );
         
-        // Pricing Information
+        // Pricing Information (Updated with Roundup fields)
         add_meta_box(
             'domain-pricing',
             __('Pricing Information', 'domain-system'),
@@ -38,20 +38,40 @@ class DomainMetaBoxes {
             'high'
         );
         
-        // Content Sections
+        // Categories
         add_meta_box(
-            'domain-content',
-            __('Content Sections', 'domain-system'),
-            [$this, 'render_content'],
+            'domain-categories',
+            __('Domain Categories', 'domain-system'),
+            [$this, 'render_categories'],
+            'domain',
+            'side',
+            'high'
+        );
+        
+        // Hero Section
+        add_meta_box(
+            'domain-hero',
+            __('Hero Section', 'domain-system'),
+            [$this, 'render_hero'],
             'domain',
             'normal',
             'default'
         );
         
-        // FAQ Management
+        // Domain Content Sections
+        add_meta_box(
+            'domain-content-sections',
+            __('Domain Content Sections', 'domain-system'),
+            [$this, 'render_content_sections'],
+            'domain',
+            'normal',
+            'default'
+        );
+        
+        // FAQ Management (Enhanced)
         add_meta_box(
             'domain-faq',
-            __('FAQ Management', 'domain-system'),
+            __('FAQ Section', 'domain-system'),
             [$this, 'render_faq'],
             'domain',
             'normal',
@@ -139,7 +159,7 @@ class DomainMetaBoxes {
                                value="<?php echo esc_attr($product_id); ?>" 
                                placeholder="PRD-123456" 
                                class="regular-text" />
-                        <p class="description"><?php _e('External system product identifier (optional)', 'domain-system'); ?></p>
+                        <p class="description"><?php _e('External system product identifier (optional - for Upmind)', 'domain-system'); ?></p>
                     </td>
                 </tr>
             </table>
@@ -156,28 +176,27 @@ class DomainMetaBoxes {
     }
     
     /**
-     * Render pricing meta box
+     * Render pricing meta box with roundup fields
      */
     public function render_pricing($post) {
-        $price_fields = ['registration_price', 'renewal_price', 'transfer_price', 'restoration_price'];
-        $field_labels = [
-            'registration_price' => __('Registration Price', 'domain-system'),
-            'renewal_price' => __('Renewal Price', 'domain-system'),
-            'transfer_price' => __('Transfer Price', 'domain-system'),
-            'restoration_price' => __('Restoration Price', 'domain-system')
+        $price_fields = [
+            'registration_roundup' => __('Registration Roundup', 'domain-system'),
+            'renewal_roundup' => __('Renewal Roundup', 'domain-system'),
+            'transfer_roundup' => __('Transfer Roundup', 'domain-system'),
+            'restoration_roundup' => __('Restoration Roundup', 'domain-system')
         ];
         $currency_symbol = get_option('domain_currency_symbol', '$');
         ?>
         <div class="domain-pricing">
             <table class="form-table">
-                <?php foreach ($price_fields as $field): 
+                <?php foreach ($price_fields as $field => $label): 
                     $value = get_post_meta($post->ID, "_domain_{$field}", true);
-                    $required = ($field === 'registration_price') ? 'required' : '';
+                    $required = ($field === 'registration_roundup') ? 'required' : '';
                 ?>
                 <tr>
                     <th scope="row">
                         <label for="domain_<?php echo $field; ?>">
-                            <?php echo $field_labels[$field]; ?>
+                            <?php echo $label; ?>
                             <?php if ($required): ?><span class="required">*</span><?php endif; ?>
                         </label>
                     </th>
@@ -193,6 +212,9 @@ class DomainMetaBoxes {
                                    class="small-text price-input" 
                                    <?php echo $required; ?> />
                         </div>
+                        <?php if ($field === 'registration_roundup'): ?>
+                        <p class="description"><?php _e('Primary registration price (e.g. $4.00)', 'domain-system'); ?></p>
+                        <?php endif; ?>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -207,78 +229,193 @@ class DomainMetaBoxes {
     }
     
     /**
-     * Render content meta box
+     * Render categories meta box
      */
-    public function render_content($post) {
-        $content_fields = ['hero_h1', 'hero_subtitle', 'overview', 'stats', 'benefits', 'ideas'];
-        $field_labels = [
-            'hero_h1' => __('Hero Title', 'domain-system'),
-            'hero_subtitle' => __('Hero Subtitle', 'domain-system'),
-            'overview' => __('Domain Overview', 'domain-system'),
-            'stats' => __('Domain Stats & History', 'domain-system'),
-            'benefits' => __('Domain Benefits', 'domain-system'),
-            'ideas' => __('Usage Ideas', 'domain-system')
+    public function render_categories($post) {
+        $primary_category = get_post_meta($post->ID, '_domain_primary_category', true);
+        $secondary_categories = get_post_meta($post->ID, '_domain_secondary_categories', true) ?: [];
+        $all_categories = $this->get_domain_categories();
+        ?>
+        <div class="domain-categories">
+            <table class="form-table">
+                <tr>
+                    <th scope="row">
+                        <label for="domain_primary_category"><?php _e('Primary Category', 'domain-system'); ?> <span class="required">*</span></label>
+                    </th>
+                    <td>
+                        <select id="domain_primary_category" name="domain_primary_category" class="widefat" required>
+                            <option value=""><?php _e('Select Primary Category', 'domain-system'); ?></option>
+                            <?php foreach ($all_categories as $slug => $name): ?>
+                            <option value="<?php echo esc_attr($slug); ?>" <?php selected($primary_category, $slug); ?>>
+                                <?php echo esc_html($name); ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="description"><?php _e('Main category for this domain extension', 'domain-system'); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="domain_secondary_categories"><?php _e('Secondary Categories', 'domain-system'); ?></label>
+                    </th>
+                    <td>
+                        <select id="domain_secondary_categories" name="domain_secondary_categories[]" class="widefat" multiple size="6">
+                            <?php foreach ($all_categories as $slug => $name): ?>
+                            <option value="<?php echo esc_attr($slug); ?>" <?php echo in_array($slug, $secondary_categories) ? 'selected' : ''; ?>>
+                                <?php echo esc_html($name); ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="description"><?php _e('Additional categories (hold Ctrl/Cmd to select multiple)', 'domain-system'); ?></p>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <?php
+    }
+    
+    /**
+     * Render hero section meta box
+     */
+    public function render_hero($post) {
+        $hero_h1 = get_post_meta($post->ID, '_domain_hero_h1', true);
+        $hero_subtitle = get_post_meta($post->ID, '_domain_hero_subtitle', true);
+        ?>
+        <div class="domain-hero">
+            <table class="form-table">
+                <tr>
+                    <th scope="row">
+                        <label for="domain_hero_h1"><?php _e('Hero H1', 'domain-system'); ?></label>
+                    </th>
+                    <td>
+                        <input type="text" 
+                               id="domain_hero_h1" 
+                               name="domain_hero_h1" 
+                               value="<?php echo esc_attr($hero_h1); ?>" 
+                               class="large-text"
+                               placeholder="<?php _e('e.g. Find your perfect .shop domain', 'domain-system'); ?>" />
+                        <p class="description"><?php _e('Main headline for the hero section', 'domain-system'); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="domain_hero_subtitle"><?php _e('Hero Subtitle', 'domain-system'); ?></label>
+                    </th>
+                    <td>
+                        <textarea id="domain_hero_subtitle" 
+                                  name="domain_hero_subtitle" 
+                                  rows="3" 
+                                  class="large-text"
+                                  placeholder="<?php _e('Supporting text for the hero section', 'domain-system'); ?>"><?php echo esc_textarea($hero_subtitle); ?></textarea>
+                        <p class="description"><?php _e('Subtitle text below the main headline', 'domain-system'); ?></p>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <?php
+    }
+    
+    /**
+     * Render content sections meta box
+     */
+    public function render_content_sections($post) {
+        $tld = get_post_meta($post->ID, '_domain_tld', true);
+        $tld_display = $tld ? ltrim($tld, '.') : 'TLD';
+        
+        $sections = [
+            'overview' => [
+                'title' => sprintf(__('Why Choose a .%s Domain?', 'domain-system'), $tld_display),
+                'label' => __('Domain Overview', 'domain-system'),
+                'description' => __('General overview and benefits of this domain extension', 'domain-system')
+            ],
+            'stats' => [
+                'title' => sprintf(__('.%s Domain Stats & History', 'domain-system'), $tld_display),
+                'label' => __('Domain Stats / History', 'domain-system'),
+                'description' => __('Statistics, facts, and history about the domain', 'domain-system')
+            ],
+            'benefits' => [
+                'title' => sprintf(__('.%s Domain Benefits', 'domain-system'), $tld_display),
+                'label' => __('Domain Benefits', 'domain-system'),
+                'description' => __('Specific benefits of choosing this domain extension', 'domain-system')
+            ],
+            'ideas' => [
+                'title' => sprintf(__('.%s Domain Ideas', 'domain-system'), $tld_display),
+                'label' => __('Domain Ideas', 'domain-system'),
+                'description' => __('Ideas and suggestions for using this domain extension', 'domain-system')
+            ]
         ];
         ?>
-        <div class="domain-content">
+        <div class="domain-content-sections">
             <div class="content-tabs">
                 <ul class="tab-nav">
-                    <li><a href="#hero-tab" class="active"><?php _e('Hero Section', 'domain-system'); ?></a></li>
-                    <li><a href="#content-tab"><?php _e('Content', 'domain-system'); ?></a></li>
+                    <?php $first = true; foreach ($sections as $key => $section): ?>
+                    <li><a href="#<?php echo $key; ?>-tab" class="<?php echo $first ? 'active' : ''; ?>"><?php echo esc_html($section['label']); ?></a></li>
+                    <?php $first = false; endforeach; ?>
                 </ul>
                 
-                <div id="hero-tab" class="tab-content active">
-                    <table class="form-table">
-                        <?php foreach (['hero_h1', 'hero_subtitle'] as $field):
-                            $value = get_post_meta($post->ID, "_domain_{$field}", true);
-                        ?>
-                        <tr>
-                            <th scope="row">
-                                <label for="domain_<?php echo $field; ?>"><?php echo $field_labels[$field]; ?></label>
-                            </th>
-                            <td>
-                                <?php if ($field === 'hero_subtitle'): ?>
-                                    <textarea id="domain_<?php echo $field; ?>" 
-                                              name="domain_<?php echo $field; ?>" 
-                                              rows="3" 
-                                              class="large-text"><?php echo esc_textarea($value); ?></textarea>
-                                <?php else: ?>
-                                    <input type="text" 
-                                           id="domain_<?php echo $field; ?>" 
-                                           name="domain_<?php echo $field; ?>" 
-                                           value="<?php echo esc_attr($value); ?>" 
-                                           class="large-text" />
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </table>
-                </div>
-                
-                <div id="content-tab" class="tab-content">
-                    <?php foreach (['overview', 'stats', 'benefits', 'ideas'] as $field):
-                        $value = get_post_meta($post->ID, "_domain_{$field}", true);
+                <?php $first = true; foreach ($sections as $key => $section): 
+                    $value = get_post_meta($post->ID, "_domain_{$key}", true);
+                ?>
+                <div id="<?php echo $key; ?>-tab" class="tab-content <?php echo $first ? 'active' : ''; ?>">
+                    <h4><?php echo esc_html($section['title']); ?></h4>
+                    <p class="description"><?php echo esc_html($section['description']); ?></p>
+                    <?php 
+                    wp_editor($value, "domain_{$key}", [
+                        'textarea_name' => "domain_{$key}",
+                        'textarea_rows' => 8,
+                        'media_buttons' => true,
+                        'teeny' => false,
+                        'tinymce' => [
+                            'toolbar1' => 'bold,italic,underline,link,unlink,bullist,numlist,blockquote,alignleft,aligncenter,alignright,undo,redo',
+                            'toolbar2' => '',
+                            'resize' => true
+                        ]
+                    ]);
                     ?>
-                    <div class="content-section">
-                        <h4><?php echo $field_labels[$field]; ?></h4>
-                        <?php 
-                        wp_editor($value, "domain_{$field}", [
-                            'textarea_name' => "domain_{$field}",
-                            'textarea_rows' => 8,
-                            'media_buttons' => true,
-                            'teeny' => false,
-                            'tinymce' => [
-                                'toolbar1' => 'bold,italic,underline,link,unlink,bullist,numlist,blockquote,alignleft,aligncenter,alignright,undo,redo',
-                                'toolbar2' => '',
-                                'resize' => true
-                            ]
-                        ]);
-                        ?>
-                    </div>
-                    <?php endforeach; ?>
                 </div>
+                <?php $first = false; endforeach; ?>
             </div>
         </div>
+        
+        <style>
+        .content-tabs .tab-nav {
+            display: flex;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .content-tabs .tab-nav li {
+            margin: 0;
+        }
+        
+        .content-tabs .tab-nav a {
+            display: block;
+            padding: 10px 15px;
+            text-decoration: none;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            background: #f9f9f9;
+            color: #666;
+        }
+        
+        .content-tabs .tab-nav a.active {
+            background: #fff;
+            color: #333;
+            border-bottom: 1px solid #fff;
+            margin-bottom: -1px;
+        }
+        
+        .content-tabs .tab-content {
+            display: none;
+            padding: 20px 0;
+        }
+        
+        .content-tabs .tab-content.active {
+            display: block;
+        }
+        </style>
         <?php
     }
     
@@ -293,66 +430,92 @@ class DomainMetaBoxes {
     }
     
     /**
-     * Render policy meta box
+     * Render policy meta box with enhanced fields
      */
     public function render_policy($post) {
-        $policy_fields = [
-            'min_length' => __('Minimum Length', 'domain-system'),
-            'max_length' => __('Maximum Length', 'domain-system'),
-            'numbers_allowed' => __('Numbers Allowed', 'domain-system'),
-            'hyphens_allowed' => __('Hyphens Allowed', 'domain-system'),
-            'idn_allowed' => __('IDN Allowed', 'domain-system')
-        ];
+        $min_length = get_post_meta($post->ID, '_domain_min_length', true) ?: 2;
+        $max_length = get_post_meta($post->ID, '_domain_max_length', true) ?: 63;
+        $numbers_allowed = get_post_meta($post->ID, '_domain_numbers_allowed', true);
+        $hyphens_allowed = get_post_meta($post->ID, '_domain_hyphens_allowed', true) ?: 'middle';
+        $idn_allowed = get_post_meta($post->ID, '_domain_idn_allowed', true);
         ?>
         <div class="domain-policy">
             <table class="form-table">
-                <?php foreach ($policy_fields as $field => $label):
-                    $value = get_post_meta($post->ID, "_domain_{$field}", true);
-                    
-                    // Set default values
-                    if ($value === '') {
-                        if ($field === 'min_length') $value = 2;
-                        if ($field === 'max_length') $value = 63;
-                        if ($field === 'hyphens_allowed') $value = 'middle';
-                    }
-                ?>
                 <tr>
                     <th scope="row">
-                        <label for="domain_<?php echo $field; ?>"><?php echo $label; ?></label>
+                        <label for="domain_min_length"><?php _e('Min Length', 'domain-system'); ?></label>
                     </th>
                     <td>
-                        <?php if ($field === 'numbers_allowed' || $field === 'idn_allowed'): ?>
-                            <label>
-                                <input type="checkbox" 
-                                       id="domain_<?php echo $field; ?>"
-                                       name="domain_<?php echo $field; ?>" 
-                                       value="1" 
-                                       <?php checked($value, 1); ?> />
-                                <?php _e('Allowed', 'domain-system'); ?>
-                            </label>
-                        <?php elseif ($field === 'hyphens_allowed'): ?>
-                            <select id="domain_<?php echo $field; ?>" name="domain_<?php echo $field; ?>">
-                                <option value="none" <?php selected($value, 'none'); ?>><?php _e('Not allowed', 'domain-system'); ?></option>
-                                <option value="middle" <?php selected($value, 'middle'); ?>><?php _e('Middle only', 'domain-system'); ?></option>
-                                <option value="all" <?php selected($value, 'all'); ?>><?php _e('Anywhere', 'domain-system'); ?></option>
-                            </select>
-                        <?php else: ?>
-                            <input type="number" 
-                                   id="domain_<?php echo $field; ?>"
-                                   name="domain_<?php echo $field; ?>" 
-                                   value="<?php echo esc_attr($value); ?>" 
-                                   min="1" 
-                                   max="63" 
-                                   class="small-text" />
-                            <?php if ($field === 'min_length'): ?>
-                                <span class="description"> - </span>
-                            <?php else: ?>
-                                <span class="description"><?php _e('characters', 'domain-system'); ?></span>
-                            <?php endif; ?>
-                        <?php endif; ?>
+                        <input type="number" 
+                               id="domain_min_length"
+                               name="domain_min_length" 
+                               value="<?php echo esc_attr($min_length); ?>" 
+                               min="1" 
+                               max="63" 
+                               class="small-text" />
+                        <span class="description"><?php _e('characters', 'domain-system'); ?></span>
                     </td>
                 </tr>
-                <?php endforeach; ?>
+                <tr>
+                    <th scope="row">
+                        <label for="domain_max_length"><?php _e('Max Length', 'domain-system'); ?></label>
+                    </th>
+                    <td>
+                        <input type="number" 
+                               id="domain_max_length"
+                               name="domain_max_length" 
+                               value="<?php echo esc_attr($max_length); ?>" 
+                               min="1" 
+                               max="63" 
+                               class="small-text" />
+                        <span class="description"><?php _e('characters', 'domain-system'); ?></span>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="domain_numbers_allowed"><?php _e('Numbers Allowed', 'domain-system'); ?></label>
+                    </th>
+                    <td>
+                        <label>
+                            <input type="checkbox" 
+                                   id="domain_numbers_allowed"
+                                   name="domain_numbers_allowed" 
+                                   value="1" 
+                                   <?php checked($numbers_allowed, 1); ?> />
+                            <?php _e('Yes', 'domain-system'); ?>
+                        </label>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="domain_hyphens_allowed"><?php _e('Hyphens Allowed', 'domain-system'); ?></label>
+                    </th>
+                    <td>
+                        <select id="domain_hyphens_allowed" name="domain_hyphens_allowed">
+                            <option value="none" <?php selected($hyphens_allowed, 'none'); ?>><?php _e('Not allowed', 'domain-system'); ?></option>
+                            <option value="middle" <?php selected($hyphens_allowed, 'middle'); ?>><?php _e('Middle only', 'domain-system'); ?></option>
+                            <option value="start" <?php selected($hyphens_allowed, 'start'); ?>><?php _e('Start only', 'domain-system'); ?></option>
+                            <option value="end" <?php selected($hyphens_allowed, 'end'); ?>><?php _e('End only', 'domain-system'); ?></option>
+                            <option value="all" <?php selected($hyphens_allowed, 'all'); ?>><?php _e('Anywhere', 'domain-system'); ?></option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="domain_idn_allowed"><?php _e('IDN Allowed', 'domain-system'); ?></label>
+                    </th>
+                    <td>
+                        <label>
+                            <input type="checkbox" 
+                                   id="domain_idn_allowed"
+                                   name="domain_idn_allowed" 
+                                   value="1" 
+                                   <?php checked($idn_allowed, 1); ?> />
+                            <?php _e('Yes', 'domain-system'); ?>
+                        </label>
+                        <p class="description"><?php _e('Internationalized Domain Names', 'domain-system'); ?></p>
+                    </td>
+                </tr>
             </table>
             
             <div class="policy-preview">
@@ -374,7 +537,7 @@ class DomainMetaBoxes {
             <table class="form-table">
                 <tr>
                     <th scope="row">
-                        <label for="domain_registry"><?php _e('Registry', 'domain-system'); ?></label>
+                        <label for="domain_registry"><?php _e('Domain Registry', 'domain-system'); ?></label>
                     </th>
                     <td>
                         <input type="text" 
@@ -400,7 +563,7 @@ class DomainMetaBoxes {
     }
     
     /**
-     * Render tools meta box
+     * Render tools meta box with bulk operations
      */
     public function render_tools($post) {
         $tld = get_post_meta($post->ID, '_domain_tld', true);
@@ -439,22 +602,17 @@ class DomainMetaBoxes {
             <div class="tool-section">
                 <h4><?php _e('Bulk Operations', 'domain-system'); ?></h4>
                 <p>
-                    <label for="bulk-import-file"><?php _e('Import CSV:', 'domain-system'); ?></label>
-                    <input type="file" id="bulk-import-file" accept=".csv" style="width: 100%; margin: 5px 0;" />
+                    <a href="<?php echo admin_url('edit.php?post_type=domain&page=domain-bulk-operations'); ?>" class="button button-secondary" style="width: 100%;">
+                        <span class="dashicons dashicons-upload"></span>
+                        <?php _e('Bulk Upload/Update', 'domain-system'); ?>
+                    </a>
                 </p>
                 <p>
-                    <button type="button" id="process-bulk-import" class="button button-secondary" style="width: 100%;">
-                        <span class="dashicons dashicons-upload"></span>
-                        <?php _e('Import CSV', 'domain-system'); ?>
+                    <button type="button" id="export-domains" class="button button-secondary" style="width: 100%;">
+                        <span class="dashicons dashicons-download"></span>
+                        <?php _e('Export Domains', 'domain-system'); ?>
                     </button>
                 </p>
-                
-                <div id="import-progress" class="import-progress" style="display: none;">
-                    <div class="progress-bar">
-                        <div class="progress-fill"></div>
-                    </div>
-                    <p class="import-status"></p>
-                </div>
             </div>
         </div>
         <?php
@@ -539,6 +697,48 @@ class DomainMetaBoxes {
             </table>
         </div>
         <?php
+    }
+    
+    /**
+     * Get domain categories
+     */
+    private function get_domain_categories() {
+        return [
+            'popular' => __('Popular', 'domain-system'),
+            'international' => __('International', 'domain-system'),
+            'academic-education' => __('Academic & Education', 'domain-system'),
+            'finance' => __('Finance', 'domain-system'),
+            'professional-businesses' => __('Professional Businesses', 'domain-system'),
+            'audio-video' => __('Audio & Video', 'domain-system'),
+            'arts-culture' => __('Arts & Culture', 'domain-system'),
+            'marketing' => __('Marketing', 'domain-system'),
+            'products' => __('Products', 'domain-system'),
+            'services' => __('Services', 'domain-system'),
+            'short' => __('Short', 'domain-system'),
+            'new' => __('New', 'domain-system'),
+            'adult' => __('Adult', 'domain-system'),
+            'technology' => __('Technology', 'domain-system'),
+            'real-estate' => __('Real Estate', 'domain-system'),
+            'politics' => __('Politics', 'domain-system'),
+            'budget' => __('$3 or less', 'domain-system'),
+            'organizations' => __('Organizations', 'domain-system'),
+            'shopping-sales' => __('Shopping & Sales', 'domain-system'),
+            'media-music' => __('Media & Music', 'domain-system'),
+            'fun' => __('Fun', 'domain-system'),
+            'sports-hobbies' => __('Sports & Hobbies', 'domain-system'),
+            'transport' => __('Transport', 'domain-system'),
+            'personal' => __('Personal', 'domain-system'),
+            'social-lifestyle' => __('Social & Lifestyle', 'domain-system'),
+            'food-drink' => __('Food & Drink', 'domain-system'),
+            'beauty' => __('Beauty', 'domain-system'),
+            'cities' => __('Cities', 'domain-system'),
+            'travel' => __('Travel', 'domain-system'),
+            'health-fitness' => __('Health & Fitness', 'domain-system'),
+            'colors' => __('Colors', 'domain-system'),
+            'trades-construction' => __('Trades & Construction', 'domain-system'),
+            'non-english' => __('Non-English', 'domain-system'),
+            'religion' => __('Religion', 'domain-system')
+        ];
     }
     
     /**

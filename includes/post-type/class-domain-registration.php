@@ -1,6 +1,6 @@
 <?php
 /**
- * Domain Registration Component
+ * Domain Registration Component - Simple Version
  * 
  * Handles the registration of the domain custom post type
  * 
@@ -53,7 +53,6 @@ class DomainRegistration {
             'description' => __('Domain landing pages and TLD information', 'domain-system'),
             'labels' => $labels,
             'supports' => ['title', 'editor', 'thumbnail', 'excerpt', 'revisions', 'custom-fields', 'author'],
-            'taxonomies' => ['domain_category', 'domain_tag'],
             'hierarchical' => false,
             'public' => true,
             'show_ui' => true,
@@ -84,8 +83,7 @@ class DomainRegistration {
             ],
             'show_in_rest' => true,
             'rest_base' => 'domains',
-            'rest_controller_class' => 'WP_REST_Posts_Controller',
-            'rest_namespace' => 'wp/v2'
+            'rest_controller_class' => 'WP_REST_Posts_Controller'
         ];
         
         register_post_type('domain', apply_filters('domain_post_type_args', $args));
