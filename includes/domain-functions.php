@@ -1533,6 +1533,9 @@ if (!function_exists('setup_domain_function_hooks')) {
         }, 10, 3);
     }
 }
-
+if (is_admin() && defined('DOMAIN_SYSTEM_INCLUDES_DIR')) {
+    require_once DOMAIN_SYSTEM_INCLUDES_DIR . 'admin/class-deprecation-scanner.php';
+    new DomainDeprecationScanner();
+}
 // Initialize hooks
 add_action('init', 'setup_domain_function_hooks', 20);
