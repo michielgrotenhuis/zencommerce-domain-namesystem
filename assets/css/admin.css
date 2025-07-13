@@ -8,7 +8,515 @@
 /* ==========================================================================
    General Admin Styles
    ========================================================================== */
+/* WordPress Admin Meta Box Styles */
 
+/* ==========================================
+   TAB STYLES
+   ========================================== */
+
+.content-tabs {
+    margin-top: 20px;
+}
+
+.content-tabs .tab-nav {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-bottom: 1px solid #ddd;
+    background: #f9f9f9;
+}
+
+.content-tabs .tab-nav li {
+    margin: 0;
+    margin-right: 2px;
+}
+
+.content-tabs .tab-nav a {
+    display: block;
+    padding: 12px 20px;
+    text-decoration: none;
+    border: 1px solid #ddd;
+    border-bottom: none;
+    background: #f9f9f9;
+    color: #666;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.content-tabs .tab-nav a:hover {
+    background: #fff;
+    color: #333;
+}
+
+.content-tabs .tab-nav a.active {
+    background: #fff;
+    color: #333;
+    border-bottom: 1px solid #fff;
+    margin-bottom: -1px;
+    z-index: 1;
+}
+
+.content-tabs .tab-content {
+    display: none;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-top: none;
+    min-height: 400px;
+}
+
+.content-tabs .tab-content.active {
+    display: block;
+}
+
+.content-tabs .tab-content h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #23282d;
+    font-size: 16px;
+}
+
+.content-tabs .tab-content .description {
+    margin-bottom: 15px;
+    font-style: italic;
+    color: #666;
+}
+
+/* ==========================================
+   FAQ STYLES
+   ========================================== */
+
+.domain-faq {
+    background: #fff;
+}
+
+.faq-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+}
+
+.faq-header h4 {
+    margin: 0;
+    color: #23282d;
+}
+
+.add-faq-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.add-faq-item .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.faq-items {
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+}
+
+.faq-item {
+    border-bottom: 1px solid #eee;
+    background: #fff;
+}
+
+.faq-item:last-child {
+    border-bottom: none;
+}
+
+.faq-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background: #f9f9f9;
+    border-bottom: 1px solid #eee;
+    cursor: move;
+}
+
+.faq-item-header:hover {
+    background: #f1f1f1;
+}
+
+.faq-item-title {
+    font-weight: 600;
+    color: #23282d;
+}
+
+.faq-item-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.faq-item-actions .button {
+    padding: 5px 8px;
+    min-height: auto;
+    height: auto;
+    line-height: 1;
+}
+
+.faq-item-actions .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.faq-item-content {
+    padding: 15px;
+    display: none;
+}
+
+.faq-item-content.active {
+    display: block;
+}
+
+.faq-item-content .form-table {
+    margin-top: 0;
+}
+
+.faq-item-content .form-table th {
+    width: 150px;
+    padding: 15px 10px 15px 0;
+    vertical-align: top;
+}
+
+.faq-item-content .form-table td {
+    padding: 15px 10px;
+}
+
+/* Empty state */
+.faq-empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+    font-style: italic;
+    background: #f9f9f9;
+    border: 1px dashed #ddd;
+}
+
+/* Sortable placeholder */
+.faq-item.ui-sortable-placeholder {
+    border: 2px dashed #0073aa;
+    background: #f0f8ff;
+    height: 60px;
+    margin-bottom: 5px;
+}
+
+/* ==========================================
+   DOMAIN TOOLS STYLES
+   ========================================== */
+
+.domain-tools {
+    background: #fff;
+}
+
+.tool-section {
+    margin-bottom: 20px;
+}
+
+.tool-section h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #23282d;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.tool-section .button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    margin-bottom: 10px;
+}
+
+.tool-section .button .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.tool-section .button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.tool-section hr {
+    margin: 20px 0;
+    border: none;
+    border-top: 1px solid #eee;
+}
+
+/* ==========================================
+   PRICING STYLES
+   ========================================== */
+
+.domain-pricing {
+    background: #fff;
+}
+
+.price-input-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.currency-symbol {
+    font-weight: 600;
+    color: #666;
+    font-size: 14px;
+}
+
+.price-input {
+    width: 100px !important;
+}
+
+.pricing-summary {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.pricing-summary h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #23282d;
+}
+
+.summary-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.summary-item {
+    padding: 10px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.summary-item strong {
+    display: block;
+    font-size: 18px;
+    color: #0073aa;
+    margin-bottom: 5px;
+}
+
+.summary-item span {
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ==========================================
+   DOMAIN PREVIEW STYLES
+   ========================================== */
+
+.domain-preview {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.domain-preview h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #23282d;
+}
+
+.preview-content p {
+    margin-bottom: 10px;
+}
+
+.preview-content strong {
+    color: #23282d;
+}
+
+.preview-content span {
+    color: #0073aa;
+    font-family: monospace;
+}
+
+/* ==========================================
+   POLICY PREVIEW STYLES
+   ========================================== */
+
+.policy-preview {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.policy-preview h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #23282d;
+}
+
+.policy-text {
+    font-family: monospace;
+    font-size: 12px;
+    color: #666;
+    line-height: 1.5;
+}
+
+/* ==========================================
+   SEO STYLES
+   ========================================== */
+
+.domain-seo {
+    background: #fff;
+}
+
+.char-count {
+    float: right;
+    font-weight: 600;
+    color: #666;
+}
+
+.og-image-upload {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.og-image-preview {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #f9f9f9;
+}
+
+.og-image-preview img {
+    display: block;
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+/* ==========================================
+   VALIDATION STYLES
+   ========================================== */
+
+.validation-message {
+    margin-top: 5px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    display: none;
+}
+
+.validation-message.error {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.validation-message.success {
+    background: #f0fdf4;
+    color: #16a34a;
+    border: 1px solid #bbf7d0;
+}
+
+.validation-message.warning {
+    background: #fefce8;
+    color: #ca8a04;
+    border: 1px solid #fef08a;
+}
+
+/* ==========================================
+   RESPONSIVE STYLES
+   ========================================== */
+
+@media (max-width: 768px) {
+    .content-tabs .tab-nav {
+        flex-direction: column;
+    }
+    
+    .content-tabs .tab-nav li {
+        margin-right: 0;
+        margin-bottom: 2px;
+    }
+    
+    .faq-item-header {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+    
+    .summary-content {
+        grid-template-columns: 1fr;
+    }
+    
+    .tool-section .button {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* ==========================================
+   UTILITY CLASSES
+   ========================================== */
+
+.required {
+    color: #dc2626;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* WordPress specific overrides */
+.post-type-domain .postbox {
+    border: 1px solid #ddd;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.04);
+}
+
+.post-type-domain .postbox .postbox-header {
+    border-bottom: 1px solid #ddd;
+    background: #f9f9f9;
+}
+
+.post-type-domain .postbox .inside {
+    padding: 0;
+}
+
+.post-type-domain .form-table th {
+    padding: 20px 10px 20px 0;
+}
+
+.post-type-domain .form-table td {
+    padding: 15px 10px;
+}
 .domain-meta-section {
     padding: 15px;
     background: #fff;
