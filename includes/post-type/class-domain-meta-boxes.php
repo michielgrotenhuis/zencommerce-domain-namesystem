@@ -1,6 +1,8 @@
 <?php
 /**
- * Domain Meta Boxes Component - Updated for Structured Fields
+ * Domain Meta Boxes Component - Updated for Real Categories
+ * 
+ * File: includes/post-type/class-domain-meta-boxes.php
  * 
  * Handles all meta box registration and rendering for domain posts
  * 
@@ -35,16 +37,6 @@ class DomainMetaBoxes {
             [$this, 'render_pricing'],
             'domain',
             'normal',
-            'high'
-        );
-        
-        // Categories
-        add_meta_box(
-            'domain-categories',
-            __('Domain Categories', 'domain-system'),
-            [$this, 'render_categories'],
-            'domain',
-            'side',
             'high'
         );
         
@@ -88,7 +80,7 @@ class DomainMetaBoxes {
             'default'
         );
         
-        // Registry Information
+        // Registry Information (Updated to use taxonomy)
         add_meta_box(
             'domain-registry',
             __('Registry Information', 'domain-system'),
@@ -117,6 +109,11 @@ class DomainMetaBoxes {
             'side',
             'low'
         );
+        
+        // Remove default taxonomy boxes since we're using custom ones
+        remove_meta_box('domain_categorydiv', 'domain', 'side');
+        remove_meta_box('tagsdiv-domain_tag', 'domain', 'side');
+        remove_meta_box('tagsdiv-domain_registry', 'domain', 'side');
     }
     
     /**
@@ -127,7 +124,7 @@ class DomainMetaBoxes {
         
         $tld = get_post_meta($post->ID, '_domain_tld', true);
         $product_id = get_post_meta($post->ID, '_domain_product_id', true);
-        $existing_domains = get_all_domain_tlds(false);
+        $existing_domains = function_exists('get_all_domain_tlds') ? get_all_domain_tlds(false) : [];
         ?>
         <div class="domain-core-info">
             <table class="form-table">
@@ -224,52 +221,6 @@ class DomainMetaBoxes {
                 <h4><?php _e('Pricing Summary', 'domain-system'); ?></h4>
                 <div class="summary-content"></div>
             </div>
-        </div>
-        <?php
-    }
-    
-    /**
-     * Render categories meta box
-     */
-    public function render_categories($post) {
-        $primary_category = get_post_meta($post->ID, '_domain_primary_category', true);
-        $secondary_categories = get_post_meta($post->ID, '_domain_secondary_categories', true) ?: [];
-        $all_categories = $this->get_domain_categories();
-        ?>
-        <div class="domain-categories">
-            <table class="form-table">
-                <tr>
-                    <th scope="row">
-                        <label for="domain_primary_category"><?php _e('Primary Category', 'domain-system'); ?> <span class="required">*</span></label>
-                    </th>
-                    <td>
-                        <select id="domain_primary_category" name="domain_primary_category" class="widefat" required>
-                            <option value=""><?php _e('Select Primary Category', 'domain-system'); ?></option>
-                            <?php foreach ($all_categories as $slug => $name): ?>
-                            <option value="<?php echo esc_attr($slug); ?>" <?php selected($primary_category, $slug); ?>>
-                                <?php echo esc_html($name); ?>
-                            </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <p class="description"><?php _e('Main category for this domain extension', 'domain-system'); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row">
-                        <label for="domain_secondary_categories"><?php _e('Secondary Categories', 'domain-system'); ?></label>
-                    </th>
-                    <td>
-                        <select id="domain_secondary_categories" name="domain_secondary_categories[]" class="widefat" multiple size="6">
-                            <?php foreach ($all_categories as $slug => $name): ?>
-                            <option value="<?php echo esc_attr($slug); ?>" <?php echo in_array($slug, $secondary_categories) ? 'selected' : ''; ?>>
-                                <?php echo esc_html($name); ?>
-                            </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <p class="description"><?php _e('Additional categories (hold Ctrl/Cmd to select multiple)', 'domain-system'); ?></p>
-                    </td>
-                </tr>
-            </table>
         </div>
         <?php
     }
@@ -423,10 +374,126 @@ class DomainMetaBoxes {
      * Render FAQ meta box
      */
     public function render_faq($post) {
-        // Load FAQ renderer
-        require_once DOMAIN_SYSTEM_INCLUDES_DIR . 'post-type/class-domain-faq-renderer.php';
-        $faq_renderer = new DomainFaqRenderer();
-        $faq_renderer->render($post);
+        // Load FAQ renderer if it exists
+        $faq_renderer_file = DOMAIN_SYSTEM_INCLUDES_DIR . 'post-type/class-domain-faq-renderer.php';
+        if (file_exists($faq_renderer_file)) {
+            require_once $faq_renderer_file;
+            $faq_renderer = new DomainFaqRenderer();
+            $faq_renderer->render($post);
+        } else {
+            // Fallback FAQ rendering
+            $faq_data = get_post_meta($post->ID, '_domain_faq', true) ?: [];
+            ?>
+            <div class="domain-faq">
+                <div id="faq-items">
+                    <?php if (!empty($faq_data)): ?>
+                        <?php foreach ($faq_data as $index => $faq): ?>
+                        <div class="faq-item" data-index="<?php echo $index; ?>">
+                            <div class="faq-header">
+                                <span class="faq-number"><?php echo $index + 1; ?></span>
+                                <input type="text" 
+                                       name="domain_faq[<?php echo $index; ?>][question]" 
+                                       value="<?php echo esc_attr($faq['question']); ?>" 
+                                       placeholder="<?php _e('FAQ Question', 'domain-system'); ?>" 
+                                       class="faq-question" />
+                                <button type="button" class="remove-faq button-link-delete"><?php _e('Remove', 'domain-system'); ?></button>
+                            </div>
+                            <textarea name="domain_faq[<?php echo $index; ?>][answer]" 
+                                      rows="3" 
+                                      placeholder="<?php _e('FAQ Answer', 'domain-system'); ?>" 
+                                      class="faq-answer"><?php echo esc_textarea($faq['answer']); ?></textarea>
+                        </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+                
+                <p>
+                    <button type="button" id="add-faq-item" class="button">
+                        <span class="dashicons dashicons-plus-alt"></span>
+                        <?php _e('Add FAQ Item', 'domain-system'); ?>
+                    </button>
+                </p>
+            </div>
+            
+            <style>
+            .faq-item {
+                border: 1px solid #ddd;
+                margin-bottom: 10px;
+                padding: 15px;
+                background: #f9f9f9;
+            }
+            
+            .faq-header {
+                display: flex;
+                align-items: center;
+                margin-bottom: 10px;
+            }
+            
+            .faq-number {
+                background: #0073aa;
+                color: white;
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 12px;
+                font-weight: bold;
+                margin-right: 10px;
+                flex-shrink: 0;
+            }
+            
+            .faq-question {
+                flex: 1;
+                margin-right: 10px;
+            }
+            
+            .faq-answer {
+                width: 100%;
+            }
+            
+            .remove-faq {
+                color: #a00;
+                text-decoration: none;
+                flex-shrink: 0;
+            }
+            </style>
+            
+            <script>
+            jQuery(document).ready(function($) {
+                var faqIndex = <?php echo count($faq_data); ?>;
+                
+                $('#add-faq-item').on('click', function() {
+                    var html = '<div class="faq-item" data-index="' + faqIndex + '">' +
+                               '<div class="faq-header">' +
+                               '<span class="faq-number">' + (faqIndex + 1) + '</span>' +
+                               '<input type="text" name="domain_faq[' + faqIndex + '][question]" placeholder="<?php _e('FAQ Question', 'domain-system'); ?>" class="faq-question" />' +
+                               '<button type="button" class="remove-faq button-link-delete"><?php _e('Remove', 'domain-system'); ?></button>' +
+                               '</div>' +
+                               '<textarea name="domain_faq[' + faqIndex + '][answer]" rows="3" placeholder="<?php _e('FAQ Answer', 'domain-system'); ?>" class="faq-answer"></textarea>' +
+                               '</div>';
+                    
+                    $('#faq-items').append(html);
+                    faqIndex++;
+                    updateFaqNumbers();
+                });
+                
+                $(document).on('click', '.remove-faq', function() {
+                    $(this).closest('.faq-item').remove();
+                    updateFaqNumbers();
+                });
+                
+                function updateFaqNumbers() {
+                    $('#faq-items .faq-item').each(function(index) {
+                        $(this).find('.faq-number').text(index + 1);
+                        $(this).attr('data-index', index);
+                    });
+                }
+            });
+            </script>
+            <?php
+        }
     }
     
     /**
@@ -526,41 +593,78 @@ class DomainMetaBoxes {
         <?php
     }
     
-    /**
-     * Render registry meta box
-     */
-    public function render_registry($post) {
-        $registry = get_post_meta($post->ID, '_domain_registry', true);
-        $registries = $this->get_popular_registries();
-        ?>
-        <div class="domain-registry">
-            <table class="form-table">
-                <tr>
-                    <th scope="row">
-                        <label for="domain_registry"><?php _e('Domain Registry', 'domain-system'); ?></label>
-                    </th>
-                    <td>
-                        <input type="text" 
-                               id="domain_registry" 
-                               name="domain_registry" 
-                               value="<?php echo esc_attr($registry); ?>" 
-                               class="widefat" 
-                               list="registry-suggestions"
-                               placeholder="<?php _e('e.g., Verisign, Donuts Inc.', 'domain-system'); ?>" />
-                        
-                        <datalist id="registry-suggestions">
-                            <?php foreach ($registries as $reg): ?>
-                            <option value="<?php echo esc_attr($reg); ?>">
-                            <?php endforeach; ?>
-                        </datalist>
-                        
-                        <p class="description"><?php _e('The registry company that manages this TLD', 'domain-system'); ?></p>
-                    </td>
-                </tr>
-            </table>
-        </div>
-        <?php
+   /**
+ * Render registry meta box - Updated to use taxonomy
+ */
+public function render_registry($post) {
+    // Get selected registries for the post
+    $selected_registries = wp_get_post_terms($post->ID, 'domain_registry', ['fields' => 'ids']);
+    if (is_wp_error($selected_registries)) {
+        $selected_registries = [];
     }
+
+    // Get all available registries
+    $all_registries = get_terms([
+        'taxonomy'   => 'domain_registry',
+        'hide_empty' => false,
+        'orderby'    => 'name',
+        'order'      => 'ASC'
+    ]);
+
+    // Legacy support
+    $legacy_registry = get_post_meta($post->ID, '_domain_registry', true);
+    ?>
+    <div class="domain-registry">
+        <table class="form-table">
+            <tr>
+                <th scope="row">
+                    <label for="domain_registry_select"><?php esc_html_e('Domain Registry', 'domain-system'); ?></label>
+                </th>
+                <td>
+                    <?php if (!empty($all_registries) && !is_wp_error($all_registries)) : ?>
+                        <select id="domain_registry_select" name="tax_input[domain_registry][]" class="widefat">
+                            <option value=""><?php esc_html_e('Select Registry', 'domain-system'); ?></option>
+                            <?php foreach ($all_registries as $registry) : ?>
+                                <option value="<?php echo esc_attr($registry->term_id); ?>"
+                                    <?php selected(in_array($registry->term_id, $selected_registries), true); ?>>
+                                    <?php echo esc_html($registry->name); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+
+                        <p class="description">
+                            <?php esc_html_e('Select the registry that manages this TLD.', 'domain-system'); ?>
+                            <a href="<?php echo esc_url(admin_url('edit-tags.php?taxonomy=domain_registry&post_type=domain')); ?>" target="_blank">
+                                <?php esc_html_e('Manage Registries', 'domain-system'); ?>
+                            </a>
+                        </p>
+                    <?php else : ?>
+                        <p>
+                            <em><?php esc_html_e('No registries available.', 'domain-system'); ?></em>
+                            <a href="<?php echo esc_url(admin_url('edit-tags.php?taxonomy=domain_registry&post_type=domain')); ?>" class="button button-secondary">
+                                <?php esc_html_e('Add Registry', 'domain-system'); ?>
+                            </a>
+                        </p>
+                    <?php endif; ?>
+
+                    <?php if (!empty($legacy_registry)) : ?>
+                        <div class="notice notice-info inline">
+                            <p>
+                                <strong><?php esc_html_e('Legacy Registry:', 'domain-system'); ?></strong>
+                                <?php echo esc_html($legacy_registry); ?><br>
+                                <small>
+                                    <?php esc_html_e('This domain has a legacy registry value. Please select the appropriate registry above.', 'domain-system'); ?>
+                                </small>
+                            </p>
+                        </div>
+                    <?php endif; ?>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <?php
+}
+
     
     /**
      * Render tools meta box with bulk operations
@@ -595,6 +699,23 @@ class DomainMetaBoxes {
                         <span class="dashicons dashicons-superhero"></span>
                         <?php _e('Auto-Generate Content', 'domain-system'); ?>
                     </button>
+                </p>
+            </div>
+            <hr>
+            
+            <div class="tool-section">
+                <h4><?php _e('Categories', 'domain-system'); ?></h4>
+                <p>
+                    <a href="<?php echo admin_url('edit-tags.php?taxonomy=domain_category&post_type=domain'); ?>" class="button button-secondary" style="width: 100%;">
+                        <span class="dashicons dashicons-category"></span>
+                        <?php _e('Manage Categories', 'domain-system'); ?>
+                    </a>
+                </p>
+                <p>
+                    <a href="<?php echo admin_url('edit-tags.php?taxonomy=domain_registry&post_type=domain'); ?>" class="button button-secondary" style="width: 100%;">
+                        <span class="dashicons dashicons-admin-site"></span>
+                        <?php _e('Manage Registries', 'domain-system'); ?>
+                    </a>
                 </p>
             </div>
             <hr>
@@ -697,71 +818,5 @@ class DomainMetaBoxes {
             </table>
         </div>
         <?php
-    }
-    
-    /**
-     * Get domain categories
-     */
-    private function get_domain_categories() {
-        return [
-            'popular' => __('Popular', 'domain-system'),
-            'international' => __('International', 'domain-system'),
-            'academic-education' => __('Academic & Education', 'domain-system'),
-            'finance' => __('Finance', 'domain-system'),
-            'professional-businesses' => __('Professional Businesses', 'domain-system'),
-            'audio-video' => __('Audio & Video', 'domain-system'),
-            'arts-culture' => __('Arts & Culture', 'domain-system'),
-            'marketing' => __('Marketing', 'domain-system'),
-            'products' => __('Products', 'domain-system'),
-            'services' => __('Services', 'domain-system'),
-            'short' => __('Short', 'domain-system'),
-            'new' => __('New', 'domain-system'),
-            'adult' => __('Adult', 'domain-system'),
-            'technology' => __('Technology', 'domain-system'),
-            'real-estate' => __('Real Estate', 'domain-system'),
-            'politics' => __('Politics', 'domain-system'),
-            'budget' => __('$3 or less', 'domain-system'),
-            'organizations' => __('Organizations', 'domain-system'),
-            'shopping-sales' => __('Shopping & Sales', 'domain-system'),
-            'media-music' => __('Media & Music', 'domain-system'),
-            'fun' => __('Fun', 'domain-system'),
-            'sports-hobbies' => __('Sports & Hobbies', 'domain-system'),
-            'transport' => __('Transport', 'domain-system'),
-            'personal' => __('Personal', 'domain-system'),
-            'social-lifestyle' => __('Social & Lifestyle', 'domain-system'),
-            'food-drink' => __('Food & Drink', 'domain-system'),
-            'beauty' => __('Beauty', 'domain-system'),
-            'cities' => __('Cities', 'domain-system'),
-            'travel' => __('Travel', 'domain-system'),
-            'health-fitness' => __('Health & Fitness', 'domain-system'),
-            'colors' => __('Colors', 'domain-system'),
-            'trades-construction' => __('Trades & Construction', 'domain-system'),
-            'non-english' => __('Non-English', 'domain-system'),
-            'religion' => __('Religion', 'domain-system')
-        ];
-    }
-    
-    /**
-     * Get popular registries
-     */
-    private function get_popular_registries() {
-        $registries = get_domain_registries();
-        
-        // Add some common ones if list is empty
-        if (empty($registries)) {
-            $registries = [
-                'Verisign',
-                'Donuts Inc.',
-                'GMO Registry',
-                'Radix Registry',
-                'Afilias',
-                'Neustar',
-                'CentralNic',
-                'Google Registry',
-                'Amazon Registry Services'
-            ];
-        }
-        
-        return $registries;
     }
 }

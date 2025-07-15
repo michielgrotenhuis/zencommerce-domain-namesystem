@@ -52,178 +52,210 @@ class DomainAdminInterface {
     /**
      * Populate custom columns
      */
-    public function populate_admin_columns($column, $post_id) {
-        switch ($column) {
-            case 'domain_tld':
-                $tld = get_post_meta($post_id, '_domain_tld', true);
-                if (!empty($tld)) {
-                    $display_tld = ltrim($tld, '.');
-                    echo '<strong>.' . esc_html($display_tld) . '</strong>';
-                    echo '<div class="row-actions">';
-                    echo '<span class="view"><a href="' . esc_url(get_permalink($post_id)) . '" target="_blank">' . __('View', 'domain-system') . '</a></span>';
-                    echo '</div>';
-                } else {
-                    echo '<span style="color: #dc3232;">' . __('Not set', 'domain-system') . '</span>';
+public function populate_admin_columns($column, $post_id) {
+    switch ($column) {
+        case 'domain_tld':
+            $tld = get_post_meta($post_id, '_domain_tld', true);
+            if (!empty($tld)) {
+                $display_tld = ltrim($tld, '.');
+                echo '<strong>.' . esc_html($display_tld) . '</strong>';
+                echo '<div class="row-actions">';
+                echo '<span class="view"><a href="' . esc_url(get_permalink($post_id)) . '" target="_blank">' . __('View', 'domain-system') . '</a></span>';
+                echo '</div>';
+            } else {
+                echo '<span style="color: #dc3232;">' . __('Not set', 'domain-system') . '</span>';
+            }
+            break;
+            
+        case 'domain_price':
+            // Check for roundup price first, then fallback to regular price
+            $price = get_post_meta($post_id, '_domain_registration_roundup', true);
+            if (empty($price)) {
+                $price = get_post_meta($post_id, '_domain_registration_price', true);
+            }
+            
+            $renewal = get_post_meta($post_id, '_domain_renewal_roundup', true);
+            if (empty($renewal)) {
+                $renewal = get_post_meta($post_id, '_domain_renewal_price', true);
+            }
+            
+            if (!empty($price)) {
+                echo '<strong>' . $this->format_price($price) . '</strong>';
+                if (!empty($renewal)) {
+                    echo '<br><small>' . __('Renewal:', 'domain-system') . ' ' . $this->format_price($renewal) . '</small>';
                 }
-                break;
+            } else {
+                echo '<span style="color: #dc3232;">' . __('Not set', 'domain-system') . '</span>';
+            }
+            break;
+            
+        case 'domain_category':
+            // Updated to use taxonomy instead of meta fields
+            $categories = wp_get_post_terms($post_id, 'domain_category');
+            
+            if (!empty($categories) && !is_wp_error($categories)) {
+                $category_names = [];
+                $primary_category = $categories[0]; // First category as primary
                 
-            case 'domain_price':
-                // Check for roundup price first, then fallback to regular price
-                $price = get_post_meta($post_id, '_domain_registration_roundup', true);
-                if (empty($price)) {
-                    $price = get_post_meta($post_id, '_domain_registration_price', true);
-                }
-                
-                $renewal = get_post_meta($post_id, '_domain_renewal_roundup', true);
-                if (empty($renewal)) {
-                    $renewal = get_post_meta($post_id, '_domain_renewal_price', true);
-                }
-                
-                if (!empty($price)) {
-                    echo '<strong>' . $this->format_price($price) . '</strong>';
-                    if (!empty($renewal)) {
-                        echo '<br><small>' . __('Renewal:', 'domain-system') . ' ' . $this->format_price($renewal) . '</small>';
-                    }
-                } else {
-                    echo '<span style="color: #dc3232;">' . __('Not set', 'domain-system') . '</span>';
-                }
-                break;
-                
-            case 'domain_category':
-                $primary_category = get_post_meta($post_id, '_domain_primary_category', true);
-                if (!empty($primary_category)) {
-                    $categories = $this->get_domain_categories();
-                    $category_name = $categories[$primary_category] ?? $primary_category;
-                    echo '<span class="category-badge">' . esc_html($category_name) . '</span>';
+                foreach ($categories as $category) {
+                    $color = get_term_meta($category->term_id, 'category_color', true) ?: '#0073aa';
+                    $icon = get_term_meta($category->term_id, 'category_icon', true);
                     
-                    $secondary = get_post_meta($post_id, '_domain_secondary_categories', true);
-                    if (!empty($secondary) && is_array($secondary)) {
-                        echo '<br><small>' . count($secondary) . ' ' . __('secondary', 'domain-system') . '</small>';
+                    $badge_html = '<span class="category-badge" style="background-color: ' . esc_attr($color) . ';">';
+                    if ($icon) {
+                        $badge_html .= '<span class="dashicons ' . esc_attr($icon) . '" style="font-size: 12px; line-height: 1;"></span> ';
                     }
-                } else {
-                    echo '<span style="color: #666;">' . __('No category', 'domain-system') . '</span>';
-                }
-                break;
-                
-            case 'domain_status':
-                $tld = get_post_meta($post_id, '_domain_tld', true);
-                $price = get_post_meta($post_id, '_domain_registration_roundup', true) ?: get_post_meta($post_id, '_domain_registration_price', true);
-                $category = get_post_meta($post_id, '_domain_primary_category', true);
-                
-                $status = 'complete';
-                $issues = [];
-                
-                if (empty($tld)) {
-                    $status = 'incomplete';
-                    $issues[] = __('No TLD', 'domain-system');
+                    $badge_html .= esc_html($category->name) . '</span>';
+                    
+                    $category_names[] = $badge_html;
                 }
                 
-                if (empty($price)) {
-                    $status = 'incomplete';
-                    $issues[] = __('No price', 'domain-system');
-                }
+                echo implode(' ', $category_names);
                 
-                if (empty($category)) {
-                    $status = 'incomplete';
-                    $issues[] = __('No category', 'domain-system');
+                // Show features if any
+                $features = wp_get_post_terms($post_id, 'domain_feature', ['number' => 3]);
+                if (!empty($features) && !is_wp_error($features)) {
+                    echo '<br><small>' . count($features) . ' ' . __('features', 'domain-system') . '</small>';
                 }
-                
-                if ($status === 'complete') {
-                    echo '<span style="color: #46b450;" title="' . __('Complete', 'domain-system') . '">●</span>';
-                } else {
-                    echo '<span style="color: #dc3232;" title="' . implode(', ', $issues) . '">●</span>';
-                }
-                break;
-        }
+            } else {
+                echo '<span style="color: #666;">' . __('No category', 'domain-system') . '</span>';
+            }
+            break;
+            
+        case 'domain_status':
+            $tld = get_post_meta($post_id, '_domain_tld', true);
+            $price = get_post_meta($post_id, '_domain_registration_roundup', true) ?: get_post_meta($post_id, '_domain_registration_price', true);
+            $categories = wp_get_post_terms($post_id, 'domain_category');
+            
+            $status = 'complete';
+            $issues = [];
+            
+            if (empty($tld)) {
+                $status = 'incomplete';
+                $issues[] = __('No TLD', 'domain-system');
+            }
+            
+            if (empty($price)) {
+                $status = 'incomplete';
+                $issues[] = __('No price', 'domain-system');
+            }
+            
+            if (empty($categories) || is_wp_error($categories)) {
+                $status = 'incomplete';
+                $issues[] = __('No category', 'domain-system');
+            }
+            
+            if ($status === 'complete') {
+                echo '<span style="color: #46b450;" title="' . __('Complete', 'domain-system') . '">●</span>';
+            } else {
+                echo '<span style="color: #dc3232;" title="' . implode(', ', $issues) . '">●</span>';
+            }
+            break;
     }
+}
     
-    /**
-     * Add sortable columns
-     */
-    public function add_sortable_columns($columns) {
-        $columns['domain_tld'] = 'domain_tld';
-        $columns['domain_price'] = 'domain_price';
-        $columns['domain_category'] = 'domain_category';
-        return $columns;
+   
+    
+   /**
+ * Handle column sorting
+ */
+public function handle_column_sorting($query) {
+    if (!is_admin() || !$query->is_main_query() || $query->get('post_type') !== 'domain') {
+        return;
     }
-    
-    /**
-     * Handle column sorting
-     */
-    public function handle_column_sorting($query) {
-        if (!is_admin() || !$query->is_main_query() || $query->get('post_type') !== 'domain') {
-            return;
-        }
-        
-        $orderby = $query->get('orderby');
-        
-        if ($orderby === 'domain_tld') {
+
+    $orderby = sanitize_key($query->get('orderby'));
+
+    switch ($orderby) {
+        case 'domain_tld':
             $query->set('meta_key', '_domain_tld');
             $query->set('orderby', 'meta_value');
-        } elseif ($orderby === 'domain_price') {
+            break;
+
+        case 'domain_price':
+            // Consider using a normalized meta key for sorting if both keys are used
             $query->set('meta_key', '_domain_registration_roundup');
             $query->set('orderby', 'meta_value_num');
-        } elseif ($orderby === 'domain_category') {
+            break;
+
+        case 'domain_category':
+            // Only works if you're saving a meta key for primary category
             $query->set('meta_key', '_domain_primary_category');
             $query->set('orderby', 'meta_value');
-        }
+            break;
     }
+}
+
     
     /**
      * Add admin styles
      */
     public function add_admin_styles() {
-        $screen = get_current_screen();
-        if ($screen && $screen->post_type === 'domain') {
-            ?>
-            <style>
-            .category-badge {
-                display: inline-block;
-                padding: 2px 8px;
-                background: #0073aa;
-                color: white;
-                border-radius: 3px;
-                font-size: 11px;
-                font-weight: 600;
-            }
-            
-            .column-domain_tld {
-                width: 120px;
-            }
-            
-            .column-domain_price {
-                width: 100px;
-            }
-            
-            .column-domain_category {
-                width: 150px;
-            }
-            
-            .column-domain_status {
-                width: 60px;
-                text-align: center;
-            }
-            
-            .domain-status-complete {
-                color: #46b450;
-            }
-            
-            .domain-status-incomplete {
-                color: #dc3232;
-            }
-            
-            .wp-list-table .column-domain_status {
-                text-align: center;
-            }
-            
-            .wp-list-table .column-domain_status span {
-                font-size: 16px;
-                cursor: help;
-            }
-            </style>
-            <?php
+    $screen = get_current_screen();
+    if ($screen && $screen->post_type === 'domain') {
+        ?>
+        <style>
+        .category-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #0073aa;
+            color: white;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            margin: 1px;
+            white-space: nowrap;
         }
+        
+        .category-badge .dashicons {
+            margin-right: 2px;
+            width: 12px;
+            height: 12px;
+            font-size: 12px;
+        }
+        
+        .column-domain_tld {
+            width: 120px;
+        }
+        
+        .column-domain_price {
+            width: 100px;
+        }
+        
+        .column-domain_category {
+            width: 200px;
+        }
+        
+        .column-domain_status {
+            width: 60px;
+            text-align: center;
+        }
+        
+        .domain-status-complete {
+            color: #46b450;
+        }
+        
+        .domain-status-incomplete {
+            color: #dc3232;
+        }
+        
+        .wp-list-table .column-domain_status {
+            text-align: center;
+        }
+        
+        .wp-list-table .column-domain_status span {
+            font-size: 16px;
+            cursor: help;
+        }
+        
+        /* Category filter dropdown styling */
+        .tablenav .actions select {
+            max-width: 200px;
+        }
+        </style>
+        <?php
     }
+}
     
     /**
      * Enqueue admin scripts
